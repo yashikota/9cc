@@ -1,9 +1,8 @@
 #include "9cc.h"
 
-// 入力プログラム
+// グローバル変数の定義
+Node *code[100];
 char *user_input;
-
-// 現在注目しているトークン
 Token *token;
 
 // エラーを報告するための関数
@@ -56,6 +55,17 @@ bool consume(char *op) {
     return true;
 }
 
+// 次のトークンが識別子の場合、トークンを1つ読み進めてそのトークンを返す
+// それ以外の場合にはNULLを返す
+Token *consume_ident() {
+    if (token->kind != TK_IDENT) {
+        return NULL;
+    }
+    Token *tok = token;
+    token = token->next;
+    return tok;
+}
+
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める
 // それ以外の場合にはエラーを報告する
 void expect(char *op) {
@@ -93,10 +103,12 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
 bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
 
 // 入力文字列pをトークナイズする
-void *tokenize(char *p) {
+void *tokenize() {
     Token head;
     head.next = NULL;
     Token *cur = &head;
+
+    char *p = user_input;
 
     while (*p) {
         if (isspace(*p)) {
@@ -113,8 +125,14 @@ void *tokenize(char *p) {
         }
 
         // 単一文字の演算子
-        if (strchr("+-*/()<>", *p)) {
+        if (strchr("+-*/()<>=;", *p)) {
             cur = new_token(TK_RESERVED, cur, p++, 1);
+            continue;
+        }
+
+        // 変数
+        if ('a' <= *p && *p <= 'z') {
+            cur = new_token(TK_IDENT, cur, p++, 1);
             continue;
         }
 
@@ -133,7 +151,10 @@ void *tokenize(char *p) {
     token = head.next;
 }
 
+void program();
+Node *stmt();
 Node *expr();
+Node *assign();
 Node *equality();
 Node *relational();
 Node *add();
@@ -141,7 +162,31 @@ Node *mul();
 Node *unary();
 Node *primary();
 
-Node *expr() { return equality(); }
+void program() {
+    int i = 0;
+    while (!at_eof()) {
+        code[i++] = stmt();
+    }
+    code[i] = NULL;
+}
+
+Node *stmt() {
+    Node *node = expr();
+
+    expect(";");
+    return node;
+}
+
+Node *expr() { return assign(); }
+
+Node *assign() {
+    Node *node = equality();
+
+    if (consume("=")) {
+        node = new_node(ND_ASSIGN, node, assign());
+    }
+    return node;
+}
 
 Node *equality() {
     Node *node = relational();
@@ -217,6 +262,15 @@ Node *primary() {
     if (consume("(")) {
         Node *node = expr();
         expect(")");
+        return node;
+    }
+
+    // そうでなければ変数のはず
+    Token *tok = consume_ident();
+    if (tok) {
+        Node *node = calloc(1, sizeof(Node));
+        node->kind = ND_LVAR;
+        node->offset = (tok->str[0] - 'a' + 1) * 8;
         return node;
     }
 
