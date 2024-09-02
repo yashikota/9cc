@@ -7,15 +7,15 @@
 
 // 抽象構文木のノードの種類
 typedef enum {
-    ND_ADD,  // +
-    ND_SUB,  // -
-    ND_MUL,  // *
-    ND_DIV,  // /
-    ND_EQ,   // ==
-    ND_NE,   // !=
-    ND_LT,   // <
-    ND_LE,   // <=
-    ND_NUM,  // 整数
+    ND_ADD,     // +
+    ND_SUB,     // -
+    ND_MUL,     // *
+    ND_DIV,     // /
+    ND_EQ,      // ==
+    ND_NE,      // !=
+    ND_LT,      // <
+    ND_LE,      // <=
+    ND_NUM,     // 整数
     ND_ASSIGN,  // =
     ND_LVAR,    // ローカル変数
 } NodeKind;
@@ -49,6 +49,19 @@ struct Token {
     char *str;       // トークン文字列
     int len;         // トークンの長さ
 };
+
+typedef struct LVar LVar;
+
+// ローカル変数の型
+struct LVar {
+    LVar *next;  // 次の変数かNULL
+    char *name;  // 変数の名前
+    int len;     // 名前の長さ
+    int offset;  // RBPからのオフセット
+};
+
+// ローカル変数
+extern LVar *locals;
 
 void *tokenize();
 void program();

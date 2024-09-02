@@ -5,6 +5,9 @@ Node *code[100];
 char *user_input;
 Token *token;
 
+// ローカル変数
+LVar *locals;
+
 // エラーを報告するための関数
 // printfと同じ引数を取る
 void error(char *fmt, ...) {
@@ -99,6 +102,16 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
     return tok;
 }
 
+// 変数を名前で検索する。見つからなかった場合はNULLを返す
+LVar *find_lvar(Token *tok) {
+    for (LVar *var = locals; var; var = var->next) {
+        if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)) {
+            return var;
+        }
+    }
+    return NULL;
+}
+
 // pがqから始まるかどうか
 bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
 
@@ -131,8 +144,12 @@ void *tokenize() {
         }
 
         // 変数
-        if ('a' <= *p && *p <= 'z') {
-            cur = new_token(TK_IDENT, cur, p++, 1);
+        if (isalpha(*p)) {
+            char *q = p;
+            while (isalnum(*p)) {
+                p++;
+            }
+            cur = new_token(TK_IDENT, cur, q, p - q);
             continue;
         }
 
@@ -270,7 +287,30 @@ Node *primary() {
     if (tok) {
         Node *node = calloc(1, sizeof(Node));
         node->kind = ND_LVAR;
-        node->offset = (tok->str[0] - 'a' + 1) * 8;
+
+        LVar *lvar = find_lvar(tok);
+        if (lvar) {
+            node->offset = lvar->offset;
+        } else {
+            lvar = calloc(1, sizeof(LVar));
+            lvar->next = locals;
+            lvar->name = tok->str;
+            lvar->len = tok->len;
+
+            // ローカル変数のオフセットを計算
+            // RBPからのオフセットを計算する
+            // もしローカル変数がすでにある場合は、その次のオフセットを計算
+            // ない場合は、8バイト分のオフセットを確保
+            if (locals) {
+                lvar->offset = locals->offset + 8;
+            } else {
+                lvar->offset = 8;
+            }
+
+            // ローカル変数リストに追加
+            node->offset = lvar->offset;
+            locals = lvar;
+        }
         return node;
     }
 
