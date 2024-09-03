@@ -58,4 +58,10 @@ assert 5 'a=3; bc=2; a+bc;'
 assert 2 'var=1; var=2; var;'
 assert 4 'v=1; va=v+3; va;'
 
+assert 3 'return 3;'
+assert 5 'return 3; return 5;'
+assert 5 'a=3; z=5; return a+z;'
+assert 6 'a=b=3; return a+b;'
+assert 5 'abc=2; xyz=abc; return 1+2*xyz;'
+
 echo OK

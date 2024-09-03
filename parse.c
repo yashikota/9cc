@@ -115,6 +115,12 @@ LVar *find_lvar(Token *tok) {
 // pがqから始まるかどうか
 bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
 
+// 変数であるかどうか
+int is_alnum(char c) {
+    return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') ||
+           ('0' <= c && c <= '9') || (c == '_');
+}
+
 // 入力文字列pをトークナイズする
 void *tokenize() {
     Token head;
@@ -153,6 +159,13 @@ void *tokenize() {
             continue;
         }
 
+        // return
+        if (startswith(p, "return") && !is_alnum(p[6])) {
+            cur = new_token(TK_RETURN, cur, p, 6);
+            p += 6;
+            continue;
+        }
+
         if (isdigit(*p)) {
             cur = new_token(TK_NUM, cur, p, 0);
             char *q = p;
@@ -188,9 +201,20 @@ void program() {
 }
 
 Node *stmt() {
-    Node *node = expr();
+    Node *node;
 
-    expect(";");
+    if (consume("return")) {
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_RETURN;
+        node->lhs = expr();
+    } else {
+        node = expr();
+    }
+
+    if (!consume(";")) {
+        error_at(token->str, "';'ではないトークンです");
+    }
+
     return node;
 }
 
